@@ -20,21 +20,20 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.chrome.service import Service as ChromeService
-import constants
+from webdriver_manager.chrome import ChromeDriverManager as CM
 
 # Add folder Path of your resume
-originalResumePath = constants.ORIGINAL_RESUME_PATH
+originalResumePath = "CV_Swayam_Bhuyan_DevOps.pdf"
 # Add Path where modified resume should be saved
-modifiedResumePath = constants.MODIFIED_RESUME_PATH
+modifiedResumePath = "CV_Swayam_Bhuyan_DevOps.pdf"
 
 # Update your naukri username and password here before running
-username = constants.USERNAME
-password = constants.PASSWORD
-mob = constants.MOBILE
+username = "test@gmail.com"
+password = "test"
+mob = "test"  # Type your mobile number here
 
 # False if you dont want to add Random HIDDEN chars to your resume
-updatePDF = False
+updatePDF = True
 
 # If Headless = True, script runs Chrome in headless mode without visible GUI
 headless = False
@@ -42,7 +41,7 @@ headless = False
 # ----- No other changes required -----
 
 # Set login URL
-NaukriURL = constants.NAUKRI_LOGIN_URL
+NaukriURL = "https://www.naukri.com/nlogin/login"
 
 logging.basicConfig(
     level=logging.INFO, filename="naukri.log", format="%(asctime)s    : %(message)s"
@@ -133,72 +132,6 @@ def WaitTillElementPresent(driver, elementTag, locator="ID", timeout=30):
     driver.implicitly_wait(3)
     return result
 
-def Logout(driver):
-    """Logout from Naukri session """
-
-    try:
-        # -------- Drawer Menu XPaths --------
-        drawer_xpaths = [
-            f"//*[contains({ci('@class')}, 'drawer__icon')]",
-            f"//div[contains({ci('@class')}, 'drawer')]"
-        ]
-
-        for xpath in drawer_xpaths:
-            if is_element_present(driver, By.XPATH, xpath):
-                try:
-                    el = GetElement(driver, xpath, locator="XPATH")
-                    if el:
-                        el.click()
-                        time.sleep(1)
-                        log_msg("Drawer menu opened")
-                        break
-                except Exception as e:
-                    log_msg(f"Drawer open failed ({xpath}): {e}")
-                    continue
-
-        # -------- Logout XPaths --------
-        logout_xpaths = [
-            "//a[@data-type='logoutLink']",
-
-            f"//a[contains({ci('@class')}, 'list-cta') and contains({ci('@title')}, 'logout')]",
-            f"//a[contains({ci('@class')}, 'logout')]",
-            f"//a[contains({ci('@href')}, 'logout')]",
-
-            f"//*[contains({ci('text()')}, 'logout')]",
-            f"//*[contains({ci('.')}, 'logout')]",
-        ]
-
-        for xpath in logout_xpaths:
-            if is_element_present(driver, By.XPATH, xpath):
-                try:
-                    el = GetElement(driver, xpath, locator="XPATH")
-                    if el:
-                        driver.execute_script("arguments[0].scrollIntoView(true);", el)
-                        time.sleep(0.5)
-                        el.click()
-                        time.sleep(2)
-                        log_msg("Logout Successful")
-                        return True
-                except Exception as e:
-                    log_msg(f"Logout click failed ({xpath}): {e}")
-                    continue
-
-        log_msg("Logout button not found")
-        return False
-
-    except Exception as e:
-        log_msg(f"Logout error: {e}")
-        return False
-    
-def ci(xpath_part: str) -> str:
-    """
-    Wraps an XPath string in lowercase translate() for case-insensitive matching.
-    Usage:
-        ci("@class") → "translate(@class,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
-        ci("text()") → "translate(text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
-    """
-    return f"translate({xpath_part},'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
-
 
 def tearDown(driver):
     try:
@@ -222,7 +155,6 @@ def randomText():
 
 def LoadNaukri(headless):
     """Open Chrome to load Naukri.com"""
-
     options = webdriver.ChromeOptions()
     options.add_argument("--disable-notifications")
     options.add_argument("--start-maximized")  # ("--kiosk") for MAC
@@ -232,16 +164,15 @@ def LoadNaukri(headless):
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("headless")
 
-    # updated to use latest selenium Chrome service
+    # updated to use ChromeDriverManager to match correct chromedriver automatically
     driver = None
     try:
-        driver = webdriver.Chrome(options=options, service=ChromeService())
-    except Exception as e:
-        print(f"Error launching Chrome: {e}")
+        driver = webdriver.Chrome(options, service=ChromeService(CM().install()))
+    except:
         driver = webdriver.Chrome(options)
     log_msg("Google Chrome Launched!")
 
-    driver.implicitly_wait(5)
+    driver.implicitly_wait(3)
     driver.get(NaukriURL)
     return driver
 
@@ -254,13 +185,11 @@ def naukriLogin(headless=False):
     password_locator = "passwordField"
     login_btn_locator = "//*[@type='submit' and normalize-space()='Login']"
     skip_locator = "//*[text() = 'SKIP AND CONTINUE']"
-    close_locator = "//*[contains(@class, 'cross-icon') or @alt='cross-icon']"
 
     try:
         driver = LoadNaukri(headless)
 
-        log_msg(driver.title)
-        if "naukri.com" in driver.title.lower():
+        if "naukri" in driver.title.lower():
             log_msg("Website Loaded Successfully.")
 
         emailFieldElement = None
@@ -281,13 +210,12 @@ def naukriLogin(headless=False):
             passFieldElement.send_keys(password)
             time.sleep(1)
             loginButton.send_keys(Keys.ENTER)
-            time.sleep(3)
+            time.sleep(1)
 
             # Added click to Skip button
             print("Checking Skip button")
-            if WaitTillElementPresent(driver, close_locator, "XPATH", 10):
-                GetElement(driver, close_locator, "XPATH").click()
-            if WaitTillElementPresent(driver, skip_locator, "XPATH", 5):
+
+            if WaitTillElementPresent(driver, skip_locator, "XPATH", 10):
                 GetElement(driver, skip_locator, "XPATH").click()
 
             # CheckPoint to verify login
@@ -332,16 +260,18 @@ def UpdateProfile(driver):
             editElement = GetElement(driver, edit_locator, locator="XPATH")
             editElement.click()
 
-            WaitTillElementPresent(driver, mobXpath, "XPATH", 10)
+            WaitTillElementPresent(driver, mobXpath, "XPATH", 20)
             mobFieldElement = GetElement(driver, mobXpath, locator="XPATH")
             if mobFieldElement:
                 mobFieldElement.clear()
                 mobFieldElement.send_keys(mob)
                 driver.implicitly_wait(2)
                 
-            saveFieldElement = GetElement(driver, saveXpath, locator="XPATH")
-            saveFieldElement.send_keys(Keys.ENTER)
-            driver.implicitly_wait(3)
+                saveFieldElement = GetElement(driver, saveXpath, locator="XPATH")
+                saveFieldElement.send_keys(Keys.ENTER)
+                driver.implicitly_wait(3)
+            else:
+                log_msg("Mobile number element not found in UI")
 
             WaitTillElementPresent(driver, save_confirm, "XPATH", 10)
             if is_element_present(driver, By.XPATH, save_confirm):
@@ -356,9 +286,11 @@ def UpdateProfile(driver):
                 mobFieldElement.send_keys(mob)
                 driver.implicitly_wait(2)
     
-            saveFieldElement = GetElement(driver, saveXpath, locator="XPATH")
-            saveFieldElement.send_keys(Keys.ENTER)
-            driver.implicitly_wait(3)
+                saveFieldElement = GetElement(driver, saveXpath, locator="XPATH")
+                saveFieldElement.send_keys(Keys.ENTER)
+                driver.implicitly_wait(3)
+            else:
+                log_msg("Mobile number element not found in UI")
 
             WaitTillElementPresent(driver, "confirmMessage", locator="ID", timeout=10)
             if is_element_present(driver, By.ID, "confirmMessage"):
@@ -372,69 +304,61 @@ def UpdateProfile(driver):
         catch(e)
 
 
-
 def UpdateResume():
     try:
-        # Random text with random location and size
+        # random text with with random location and size
         txt = randomText()
-        xloc = randint(700, 1000)  # This ensures that text is 'out of page'
+        xloc = randint(700, 1000)  # this ensures that text is 'out of page'
         fsize = randint(1, 10)
 
         packet = io.BytesIO()
         can = canvas.Canvas(packet, pagesize=letter)
         can.setFont("Helvetica", fsize)
-        can.drawString(xloc, 100, txt)
+        can.drawString(xloc, 100, "lon")
         can.save()
 
         packet.seek(0)
         new_pdf = PdfReader(packet)
-        with open(originalResumePath, "rb") as f:
-            existing_pdf = PdfReader(f)
-            pagecount = len(existing_pdf.pages)
-            print("Found %s pages in PDF" % pagecount)
+        existing_pdf = PdfReader(open(originalResumePath, "rb"))
+        pagecount = len(existing_pdf.pages)
+        print("Found %s pages in PDF" % pagecount)
 
-            output = PdfWriter()
-            # Merging new pdf with last page of existing pdf
-            for pageNum in range(pagecount - 1):
-                output.add_page(existing_pdf.pages[pageNum])
-            page = existing_pdf.pages[pagecount - 1]
-            page.merge_page(new_pdf.pages[0])
-            output.add_page(page)
+        output = PdfWriter()
+        # Merging new pdf with last page of my existing pdf
+        # Updated to get last page for pdf files with varying page count
+        for pageNum in range(pagecount - 1):
+            output.addPage(existing_pdf.get_page_number(pageNum))
 
-            # Save the new resume file
-            with open(modifiedResumePath, "wb") as outputStream:
-                output.write(outputStream)
-            print("Saved modified PDF: %s" % modifiedResumePath)
-            return os.path.abspath(modifiedResumePath)
+        page = existing_pdf.get_page_number(pagecount - 1)
+        page.mergePage(new_pdf.get_page_number(0))
+        output.addPage(page)
+        # save the new resume file
+        with open(modifiedResumePath, "wb") as outputStream:
+            output.write(outputStream)
+        print("Saved modified PDF : %s" % modifiedResumePath)
+        return os.path.abspath(modifiedResumePath)
     except Exception as e:
         catch(e)
     return os.path.abspath(originalResumePath)
 
 
-
 def UploadResume(driver, resumePath):
     try:
         attachCVID = "attachCV"
-        lazyattachCVID = "lazyAttachCV"
-        uploadCV_btn = "//*[contains(@class, 'upload')]//input[@value='Update resume']"
         CheckPointXpath = "//*[contains(@class, 'updateOn')]"
         saveXpath = "//button[@type='button']"
         close_locator = "//*[contains(@class, 'crossIcon')]"
 
-        driver.get(constants.NAUKRI_PROFILE_URL)
+        driver.get("https://www.naukri.com/mnjuser/profile")
 
         time.sleep(2)
         if WaitTillElementPresent(driver, close_locator, "XPATH", 10):
             GetElement(driver, close_locator, locator="XPATH").click()
             time.sleep(2)
 
-        if WaitTillElementPresent(driver, lazyattachCVID, locator="ID", timeout=5):
-            AttachElement = GetElement(driver, uploadCV_btn, locator="XPATH")
-            AttachElement.send_keys(os.path.abspath(resumePath))
-
-        if WaitTillElementPresent(driver, attachCVID, locator="ID", timeout=5):
-            AttachElement = GetElement(driver, attachCVID, locator="ID")
-            AttachElement.send_keys(os.path.abspath(resumePath))
+        WaitTillElementPresent(driver, attachCVID, locator="ID", timeout=10)
+        AttachElement = GetElement(driver, attachCVID, locator="ID")
+        AttachElement.send_keys(resumePath)
 
         if WaitTillElementPresent(driver, saveXpath, locator="ID", timeout=5):
             saveElement = GetElement(driver, saveXpath, locator="XPATH")
@@ -484,12 +408,6 @@ def main():
         catch(e)
 
     finally:
-        if driver is not None:
-            try:
-                Logout(driver)
-                time.sleep(2)
-            except Exception as e:
-                log_msg("Error during logout: %s" % e)
         tearDown(driver)
 
     log_msg("-----Naukri.py Script Run Ended-----\n")
